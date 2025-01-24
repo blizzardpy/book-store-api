@@ -215,6 +215,43 @@ app.put('/api/cart/checkout', authenticate, async (req, res) => {
   }
 });
 
+app.get('/api/purchases', authenticate, async (req, res) => {
+  try {
+    // Fetch all carts with status 'done' for the user
+    const carts = await Cart.find({
+      userId: req.user.userId,
+      status: 'done',
+    }).populate('items.bookId');
+
+    // Prepare the response data
+    const cartData = carts.map((cart) => {
+      // Calculate the total for the cart
+      const total = cart.items.reduce(
+        (sum, item) => sum + (item.bookId.price || 0) * item.quantity,
+        0
+      );
+
+      // Extract the list of books
+      const books = cart.items.map((item) => ({
+        bookId: item.bookId._id,
+        title: item.bookId.title,
+        price: item.bookId.price,
+        quantity: item.quantity,
+      }));
+
+      return {
+        cartId: cart._id,
+        total,
+        books,
+      };
+    });
+
+    res.json({ carts: cartData });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Start server
 const PORT = 8000;
 app.listen(PORT, () => {
